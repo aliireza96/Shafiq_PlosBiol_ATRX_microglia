@@ -1,6 +1,6 @@
 # Shafiq_PlosBiol_ATRX_microglia
 
-# ATRX Microglia Multi-omics Analysis
+# ATRX-null Microglia Multi-omics Analysis
 
 This repository provides all scripts and workflows for the analyses in our study of ATRX deletion in microglia. It includes RNA-seq, ATAC-seq, and transposable element (TE) analysis, along with LTR classification and visualization tools.
 
