@@ -2,12 +2,14 @@
 
 # ATRX-null Microglia Multi-omics Analysis
 
-This repository provides all scripts and workflows for the analyses in our study of ATRX deletion in microglia. It includes RNA-seq, ATAC-seq, and transposable element (TE) analysis, along with LTR classification and visualization tools.
+This repository contains all scripts, pipelines, and documentation used in our study of ATRX deletion in microglia. Our analysis integrates RNA-seq, ATAC-seq, and transposable element (TE) profiling, with dedicated workflows for LTR classification and data visualization. All steps from raw data preprocessing to final figure generation are included to ensure full reproducibility.
 
 ## Organization
 
-- **/RNAseq/**: RNA-seq and gene/TE differential analysis analysis (DESeq2, TEtranscripts, bidirectional, LTR solo/full-length classification)
-- **/ATACseq/**: ATAC-seq preprocessing and peak/TE differential analysis
+- **/RNAseq/**: Workflows and scripts for RNA-seq analysis, including gene and TE differential expression (DESeq2, TEtranscripts), bidirectional transcription quantification, and LTR solo/full-length classification.
+
+- **/ATACseq/**: ATAC-seq preprocessing, peak calling, and differential analysis of peaks and TEs.
+
 
 **Questions or issues?**  
 Open an Issue on GitHub or email Alireza Ghahramani at aghahram@uwo.ca.
