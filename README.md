@@ -1,4 +1,6 @@
 # Shafiq_PlosBiol_ATRX_microglia
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15679297.svg)](https://doi.org/10.5281/zenodo.15679297)
+
 
 # ATRX-null Microglia Multi-omics Analysis
 
