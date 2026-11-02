@@ -27,6 +27,8 @@ bam_dir <- "aligned"                      # Directory containing BAM files
 metadata_file <- "sample_metadata.csv"    # Path to sample metadata CSV
 output_dir <- "atac_deseq2_results"      # Output directory
 condition_column <- "condition"           # Metadata column for comparison
+reference_level <- "control"                   # baseline level of condition_column (denominator)
+treatment_level <- "KO"                        # level compared against the baseline (numerator)
 
 dir.create(output_dir, showWarnings = FALSE)
 
@@ -94,26 +96,33 @@ dds <- DESeqDataSetFromMatrix(
 )
 dds <- dds[rowSums(counts(dds)) > 10, ]    # Filter low-count peaks
 
+# Set the baseline explicitly. Without this DESeq2 orders levels alphabetically,
+# which silently decides the sign of every log2 fold change.
+dds[[condition_column]] <- relevel(factor(dds[[condition_column]]), ref = reference_level)
+
 dds <- DESeq(dds)
-res <- results(dds, alpha=0.05)
+res <- results(dds, contrast=c(condition_column, treatment_level, reference_level), alpha=0.05)
 res_df <- as.data.frame(res)
 res_df$peak_id <- rownames(res_df)
 
 write.csv(res_df, file=file.path(output_dir, "consensus_peak_deseq2_results.csv"))
 
 # -------- 6. PLOTS --------
-ggplot(res_df, aes(log2FoldChange, -log10(padj))) +
-  geom_point(aes(color=padj < 0.05), alpha=0.7) +
+# padj is NA wherever DESeq2 independent filtering removed the feature; drop those
+# rows explicitly so they are not silently discarded by the plot.
+res_df_plot <- res_df[!is.na(res_df$padj), ]
+p_consensus_peak_volcano_plot <- ggplot(res_df_plot, aes(log2FoldChange, -log10(padj))) +
+  geom_point(aes(color = padj < 0.05), alpha=0.7) +
   theme_minimal() +
   labs(title="Consensus Peak Volcano Plot", x="log2 Fold Change", y="-log10 adj p-value") +
-  scale_color_manual(values=c("gray", "red")) +
-  ggsave(file.path(output_dir, "consensus_peak_volcano_plot.png"), width=6, height=5)
+  scale_color_manual(values=c("FALSE"="gray", "TRUE"="red"), name="padj < 0.05")
+ggsave(file.path(output_dir, "consensus_peak_volcano_plot.png"), p_consensus_peak_volcano_plot, width=6, height=5)
 
 top_peaks <- head(order(res_df$padj), 30)
 if (length(top_peaks) >= 2) {
   vsd <- varianceStabilizingTransformation(dds)
   mat <- assay(vsd)[top_peaks, ]
-  pheatmap(mat, scale="row", annotation_col=metadata, filename=file.path(output_dir, "top_consensus_peaks_heatmap.png"))
+  pheatmap(mat, scale="row", annotation_col=metadata[, condition_column, drop=FALSE], filename=file.path(output_dir, "top_consensus_peaks_heatmap.png"))
 }
 
 sink(file.path(output_dir, "sessionInfo.txt"))
