@@ -25,6 +25,8 @@ metadata_file <- "sample_metadata.csv"          # CSV file: sample, condition, e
 gtf_file <- "/path/to/annotation.gtf"           # GTF file for tx2gene mapping
 output_dir <- "rnaseq_results"
 condition_column <- "condition"                 # Column name in metadata for group/condition
+reference_level <- "control"                   # baseline level of condition_column (denominator)
+treatment_level <- "KO"                        # level compared against the baseline (numerator)
 
 dir.create(output_dir, showWarnings = FALSE)
 
@@ -69,8 +71,12 @@ dds <- DESeqDataSetFromTximport(
 )
 dds <- dds[rowSums(counts(dds)) > 10, ]  # Filter out low-expression transcripts
 
+# Set the baseline explicitly. Without this DESeq2 orders levels alphabetically,
+# which silently decides the sign of every log2 fold change.
+dds[[condition_column]] <- relevel(factor(dds[[condition_column]]), ref = reference_level)
+
 dds <- DESeq(dds)
-res <- results(dds, alpha=0.05)
+res <- results(dds, contrast=c(condition_column, treatment_level, reference_level), alpha=0.05)
 res_df <- as.data.frame(res)
 res_df$transcript_id <- rownames(res_df)
 
@@ -109,27 +115,33 @@ write.csv(final_gene_results, file=file.path(output_dir, "gene_level_DE_lancaste
 
 # -------- 6. PLOTS --------
 # Volcano plot: transcript level
-ggplot(res_df, aes(log2FoldChange, -log10(padj))) +
+# padj is NA wherever DESeq2 independent filtering removed the feature; drop those
+# rows explicitly so they are not silently discarded by the plot.
+res_df_plot <- res_df[!is.na(res_df$padj), ]
+p_volcano_plot_transcript <- ggplot(res_df_plot, aes(log2FoldChange, -log10(padj))) +
   geom_point(aes(color = padj < 0.05), alpha=0.7) +
   theme_minimal() +
   labs(title="Transcript-level Volcano plot", x="log2 Fold Change", y="-log10 adj p-value") +
-  scale_color_manual(values=c("gray", "red")) +
-  ggsave(file.path(output_dir, "volcano_plot_transcript.png"), width=6, height=5)
+  scale_color_manual(values=c("FALSE"="gray", "TRUE"="red"), name="padj < 0.05")
+ggsave(file.path(output_dir, "volcano_plot_transcript.png"), p_volcano_plot_transcript, width=6, height=5)
 
 # Volcano plot: gene level
-ggplot(final_gene_results, aes(log2FoldChange, -log10(padj))) +
+# padj is NA wherever DESeq2 independent filtering removed the feature; drop those
+# rows explicitly so they are not silently discarded by the plot.
+final_gene_results_plot <- final_gene_results[!is.na(final_gene_results$padj), ]
+p_volcano_plot_gene <- ggplot(final_gene_results_plot, aes(log2FoldChange, -log10(padj))) +
   geom_point(aes(color = padj < 0.05), alpha=0.7) +
   theme_minimal() +
   labs(title="Gene-level Volcano plot (Lancaster aggregation)", x="log2 Fold Change", y="-log10 adj p-value") +
-  scale_color_manual(values=c("gray", "red")) +
-  ggsave(file.path(output_dir, "volcano_plot_gene.png"), width=6, height=5)
+  scale_color_manual(values=c("FALSE"="gray", "TRUE"="red"), name="padj < 0.05")
+ggsave(file.path(output_dir, "volcano_plot_gene.png"), p_volcano_plot_gene, width=6, height=5)
 
 # Heatmap of top 30 variable transcripts (optional)
 top_trans <- head(order(res_df$padj), 30)
 if (length(top_trans) >= 2) {
   vsd <- varianceStabilizingTransformation(dds)
   mat <- assay(vsd)[top_trans, ]
-  pheatmap(mat, scale="row", annotation_col=metadata, filename=file.path(output_dir, "top_transcripts_heatmap.png"))
+  pheatmap(mat, scale="row", annotation_col=metadata[, condition_column, drop=FALSE], filename=file.path(output_dir, "top_transcripts_heatmap.png"))
 }
 
 # -------- 7. SESSION INFO --------
